@@ -15,8 +15,8 @@
 
 using namespace std;
 
-GLuint g_window_w = 600;
-GLuint g_window_h = 600;
+GLuint g_window_w = 1200;
+GLuint g_window_h = 1000;
 
 GLuint VAO[6];
 GLuint VBO_position[6];
@@ -28,8 +28,12 @@ GLuint box_vao;
 
 int polygon_mode = 1;
 
+int turn = RED;
+
 const int num_vertices = 3;
 const int num_triangles = 1;
+
+int Chess_Turn = 0;
 
 void Display();
 void Reshape(int w, int h);
@@ -44,6 +48,9 @@ void ambientlight(float R, float G, float B);
 void Chess_Board_ambientlight();
 void Chess_obj_draw();
 void init_Chess_board();
+void WhiteTurn(unsigned char key);
+void BlackTurn(unsigned char key);
+void TimerFunction(int);
 
 struct Chess {
 	float x, z;
@@ -1049,8 +1056,10 @@ float Move_box_nomal[] = {
 	1.0f, 0.0f, 0.0f
 };
 
-float dis = 15.0f;
+float dis = 0.0f;
 float angle = 0.0f;
+float shake = 0.0f;
+float pourout = 0.0f;
 float camera_x = -10.0f;
 float camera_y = 15.0f;
 float camera_z = 4.0f;
@@ -1061,8 +1070,8 @@ int box_i = 0;
 int box_j = 0;
 
 bool sel = false;
-
-int turn = RED;
+bool RedCam = false;
+bool BlueCam = false;
 
 //--- load obj related variabales
 objRead objReader[6];
@@ -1118,6 +1127,7 @@ int main(int argc, char** argv)
 	init_Chess_board();
 
 	// callback functions
+	glutTimerFunc(100, TimerFunction, 1);
 	glutDisplayFunc(Display);
 	glutReshapeFunc(Reshape);
 	glutKeyboardFunc(Keyboard);
@@ -1282,14 +1292,16 @@ void Keyboard(unsigned char key, int x, int y)
 					board[box_i][box_j].p = selected.p;
 					board[box_i][box_j].c = selected.c;
 					turn = BLUE;
-				}				
-			}		
+					BlueCam = true;
+				}
+			}
 			else if (turn == BLUE) {
 				if (board[box_i][box_j].c != BLUE) {
 					sel = false;
 					board[box_i][box_j].p = selected.p;
 					board[box_i][box_j].c = selected.c;
 					turn = RED;
+					RedCam = true;
 				}
 			}
 		}
@@ -1300,41 +1312,78 @@ void Keyboard(unsigned char key, int x, int y)
 			sel = false;
 		}
 		break;
+	case 'z':
+		dis += 1.0f;
+		break;
+	case'x':
+		shake += 0.5f;
+		break;
+	case 'c':
+		pourout += 1.0f;
+		break;
 	}
-
 	glutPostRedisplay();
 }
 
 void Skeyboard(int key, int x, int y) {
-	if (key == GLUT_KEY_LEFT) {
-		if (box_j - 1 >= 0) {
-			t_box_z -= 1.0f;
-			box_j--;
+	if (turn == RED) {
+		if (key == GLUT_KEY_LEFT) {
+			if (box_j - 1 >= 0) {
+				t_box_z -= 1.0f;
+				box_j--;
+			}
 		}
-	}
 
-	else if (key == GLUT_KEY_RIGHT) {
-		if (box_j + 1 <= 7) {
-			t_box_z += 1.0f;
-			box_j++;
+		else if (key == GLUT_KEY_RIGHT) {
+			if (box_j + 1 <= 7) {
+				t_box_z += 1.0f;
+				box_j++;
+			}
 		}
-	}
 
-	else if (key == GLUT_KEY_UP) {
-		if (box_i + 1 <= 7) {
-			t_box_x += 1.0f;
-			if(turn == RED)
+		else if (key == GLUT_KEY_UP) {
+			if (box_i + 1 <= 7) {
+				t_box_x += 1.0f;
 				box_i++;
+			}
+		}
+
+		else if (key == GLUT_KEY_DOWN) {
+			if (box_i - 1 >= 0) {
+				t_box_x -= 1.0f;
+				box_i--;
+			}
 		}
 	}
+	else if (turn == BLUE) {
+		if (key == GLUT_KEY_RIGHT) {
+			if (box_j - 1 >= 0) {
+				t_box_z -= 1.0f;
+				box_j--;
+			}
+		}
 
-	else if (key == GLUT_KEY_DOWN) {
-		if (box_i - 1 >= 0) {
-			t_box_x -= 1.0f;
-			box_i--;
+		else if (key == GLUT_KEY_LEFT) {
+			if (box_j + 1 <= 7) {
+				t_box_z += 1.0f;
+				box_j++;
+			}
+		}
+
+		else if (key == GLUT_KEY_DOWN) {
+			if (box_i + 1 <= 7) {
+				t_box_x += 1.0f;
+				box_i++;
+			}
+		}
+
+		else if (key == GLUT_KEY_UP) {
+			if (box_i - 1 >= 0) {
+				t_box_x -= 1.0f;
+				box_i--;
+			}
 		}
 	}
-
 
 	glutPostRedisplay();
 }
@@ -1380,7 +1429,6 @@ void init_Chess_board() {
 
 void Chess_obj_draw()
 {
-
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	viewTransform();
 	projectionTransform();
@@ -1478,18 +1526,22 @@ void Chess_obj_draw()
 		}
 	}
 }
+//tz에다가 sin 더하면 양옆으로 흔들기
+//
 
 void transform(float tx, float ty, float tz, float rx, float ry, float rz, float sx, float sy, float sz) {
+	float sin = glm::sin(shake);
+	float cos = glm::cos(shake);
 	glm::mat4 T = glm::mat4(1.0f);
 	glm::mat4 Rx = glm::mat4(1.0f);
 	glm::mat4 Ry = glm::mat4(1.0f);
 	glm::mat4 Rz = glm::mat4(1.0f);
 	glm::mat4 S = glm::mat4(1.0f);
 	glm::mat4 TR = glm::mat4(1.0f);
-	T = glm::translate(T, glm::vec3(tx, ty, tz));
+	T = glm::translate(T, glm::vec3(tx, ty, tz + sin));
 	Rx = glm::rotate(Rx, glm::radians(rx), glm::vec3(1.0, 0.0, 0.0));;
-	Ry = glm::rotate(Rx, glm::radians(ry), glm::vec3(0.0, 1.0, 0.0));;
-	Rz = glm::rotate(Rx, glm::radians(rz), glm::vec3(0.0, 0.0, 1.0));;
+	Ry = glm::rotate(Ry, glm::radians(ry), glm::vec3(0.0, 1.0, 0.0));;
+	Rz = glm::rotate(Rz, glm::radians(rz), glm::vec3(0.0, 0.0, 1.0));;
 	S = glm::scale(S, glm::vec3(sx, sy, sz));
 	TR = T * Rx * Ry * Rz * S;
 	unsigned int modelLocation = glGetUniformLocation(s_program[0], "modelTransform");
@@ -1497,19 +1549,70 @@ void transform(float tx, float ty, float tz, float rx, float ry, float rz, float
 }
 
 void TimerFunction(int value) {
+	int a = 180;
 
+	if (BlueCam == true) {
+		angle += 3;
+		if (angle == 180)
+			BlueCam = false;
+	}
+
+	if (RedCam == true) {
+		angle += 3;
+		if (angle == 360) {
+			RedCam = false;
+			angle = 0;
+		}
+	}
+
+
+	glutPostRedisplay();
+	glutTimerFunc(30, TimerFunction, 1);
 }
 
+
+//카메라 뷰 -10.0f + angle, 15.0f, 4.0f
+// 1.0f -dis, 0.0f+dis, 0.0f
+//카메라 뷰 - 18.0f,15.0f,4.0f
+
+//-10.0f + sin, 15.0f, 4.0f +cos
+
+
+
 void viewTransform() {
-	//float sin = glm::sin(angle);
-	//float cos = glm::cos(angle);
-	glm::vec3 cameraPos = glm::vec3(camera_x, camera_y, camera_z); //--- 카메라 위치
-	glm::vec3 cameraDirection = glm::vec3(4.0f, 0.0f, 4.0f); //--- 카메라 바라보는 방향
-	glm::vec3 cameraUp = glm::vec3(1.0f, 0.0f, 0.0f); //--- 카메라 위쪽 방향
+	float sin = glm::sin(dis);
+	float cos = glm::cos(dis);
+	float sin1 = glm::sin(pourout);
+	float cos1 = glm::cos(pourout);
+	glm::mat4 T = glm::mat4(1.0f);
+	glm::mat4 T2 = glm::mat4(1.0f);
+	glm::mat4 Rx = glm::mat4(1.0f);
+	glm::mat4 Ry = glm::mat4(1.0f);
+	glm::mat4 Rz = glm::mat4(1.0f);
 	glm::mat4 view = glm::mat4(1.0f);
+
+	glm::vec3 cameraPos = glm::vec3(camera_x + sin, camera_y + sin1, camera_z + cos); //--- 카메라 위치
+	glm::vec3 cameraDirection = glm::vec3(4.0f, 0.0f, 4.0f); //--- 카메라 바라보는 방향
+	glm::vec3 cameraUp = glm::vec3(1.0f, 1.0f, 0.0f);
+	T2 = glm::translate(T2, glm::vec3(4.0f, 0.0f, 4.0f));
+	Rx = glm::rotate(Rx, glm::radians(0.0f), glm::vec3(1.0, 0.0, 0.0));;
+	Rz = glm::rotate(Rz, glm::radians(0.0f), glm::vec3(0.0, 0.0, 1.0));;
+	Ry = glm::rotate(Ry, glm::radians(0.0f + angle), glm::vec3(0.0, 1.0, 0.0));;
+	T = glm::translate(T, glm::vec3(-4.0f, 0.0f, -4.0f));
 	view = glm::lookAt(cameraPos, cameraDirection, cameraUp);
+	view = view * T2 * Ry * Rx * Rz * T;
+
 	unsigned int viewLocation = glGetUniformLocation(s_program[0], "viewTransform"); //--- 뷰잉 변환 설정
 	glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
+
+
+	//glm::vec3 cameraPos = glm::vec3(18.0f,15.0f,4.0f); //--- 카메라 위치
+	//glm::vec3 cameraDirection = glm::vec3(4.0f, 0.0f, 4.0f); //--- 카메라 바라보는 방향
+	//glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f); //--- 카메라 위쪽 방향
+	//glm::mat4 view = glm::mat4(1.0f);
+	//view = glm::lookAt(cameraPos, cameraDirection, cameraUp);
+	//unsigned int viewLocation = glGetUniformLocation(s_program[0], "viewTransform"); //--- 뷰잉 변환 설정
+	//glUniformMatrix4fv(viewLocation, 1, GL_FALSE, &view[0][0]);
 }
 
 void projectionTransform() {
@@ -1525,7 +1628,7 @@ void ambientlight(float R, float G, float B) {
 	glUseProgram(s_program[0]);
 
 	unsigned int lightPosLocation = glGetUniformLocation(s_program[0], "lightPos"); //--- lightPos 값 전달
-	glUniform3f(lightPosLocation, 4.0f, 5.0f, 4.0f);
+	glUniform3f(lightPosLocation, -10.0f, 0.0f, 4.0f);
 	unsigned int lightColorLocation = glGetUniformLocation(s_program[0], "lightColor"); //--- lightColor 값 전달
 	glUniform3f(lightColorLocation, 1.0, 1.0, 1.0);
 	unsigned int objColorLocation = glGetUniformLocation(s_program[0], "objectColor"); //--- object Color값 전달
@@ -1539,7 +1642,7 @@ void Chess_Board_ambientlight() {
 	glUseProgram(s_program[0]);
 
 	unsigned int lightPosLocation = glGetUniformLocation(s_program[0], "lightPos"); //--- lightPos 값 전달
-	glUniform3f(lightPosLocation, 4.0f, 5.0f, 4.0f);
+	glUniform3f(lightPosLocation, 4.0f, 0.0f, 4.0f);
 	unsigned int lightColorLocation = glGetUniformLocation(s_program[0], "lightColor"); //--- lightColor 값 전달
 	glUniform3f(lightColorLocation, 1.0, 1.0, 1.0);
 	//unsigned int objColorLocation = glGetUniformLocation(s_program[0], "objectColor"); //--- object Color값 전달
@@ -1548,6 +1651,97 @@ void Chess_Board_ambientlight() {
 	glUniform3f(viewPosLocation, camera_x, camera_y, camera_z);
 
 }
+
+void WhiteTurn(unsigned char key) {
+	int temp_i = -1;
+	int temp_j = -1;
+	float sin = glm::sin(angle);
+	float cos = glm::cos(angle);
+	switch (key) {
+	case '[':
+		if (board[box_i][box_j].c == RED) {
+			if (board[box_i][box_j].p != NONE) {
+				sel = true;
+				selected.p = board[box_i][box_j].p;
+				selected.c = board[box_i][box_j].c;
+				temp_i = box_i;
+				temp_j = box_j;
+			}
+		}
+		break;
+	case ']':
+		if (sel == true) {
+			sel = false;
+			board[box_i][box_j].p = selected.p;
+			board[box_i][box_j].c = selected.c;
+			board[temp_i][temp_j].p = NONE;
+			board[temp_i][temp_j].c = NONE;
+			Chess_Turn += 1;
+			BlueCam = true;
+		}
+		break;
+
+	case 'p':
+		if (sel == true) {
+			sel = false;
+			Chess_Turn += 1;
+		}
+		break;
+	case 'z':
+		dis += 1.0f;
+		break;
+	case'x':
+		shake += 0.5f;
+		break;
+	case 'c':
+		pourout += 1.0f;
+		break;
+	}
+}
+
+void BlackTurn(unsigned char key) {
+	int temp_i = -1;
+	int temp_j = -1;
+	switch (key) {
+	case '[':
+		if (board[box_i][box_j].c == BLUE) {
+			if (board[box_i][box_j].p != NONE) {
+				sel = true;
+				selected.p = board[box_i][box_j].p;
+				selected.c = board[box_i][box_j].c;
+				temp_i = box_i;
+				temp_j = box_j;
+			}
+		}
+		break;
+
+	case ']':
+		if (sel == true) {
+			sel = false;
+			board[box_i][box_j].p = selected.p;
+			board[box_i][box_j].c = selected.c;
+			board[temp_i][temp_j].p = NONE;
+			board[temp_i][temp_j].c = NONE;
+			Chess_Turn += 1;
+			RedCam = true;
+		}
+		break;
+
+	case 'p':
+		if (sel == true) {
+			sel = false;
+			Chess_Turn += 1;
+		}
+		break;
+	case 'z':
+		dis += 1.0f;
+		break;
+	case'x':
+		shake += 0.5f;
+		break;
+	}
+}
+
 
 
 
