@@ -1222,7 +1222,10 @@ void Display()
 	glDrawArrays(GL_QUADS, 0, 32 * 8);
 	glBindVertexArray(box_vao);
 	transform(t_box_x, 0.01, t_box_z, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0);
-	ambientlight(1.0, 1.0, 0.0);
+	if (turn == RED)
+		ambientlight(1.0, 1.0, 0.0);
+	else
+		ambientlight(0.0, 1.0, 1.0);
 	glDrawArrays(GL_QUADS, 0, 4);
 
 	Chess_obj_draw();
@@ -1246,22 +1249,49 @@ void Keyboard(unsigned char key, int x, int y)
 	switch (key)
 	{
 	case '[':
-		if (board[box_i][box_j].p != NONE) {
-			sel = true;
-			selected.p = board[box_i][box_j].p;
-			selected.c = board[box_i][box_j].c;
-			temp_i = box_i;
-			temp_j = box_j;
+		if (turn == RED) {
+			if (board[box_i][box_j].p != NONE && board[box_i][box_j].c == RED) {
+				sel = true;
+				selected.p = board[box_i][box_j].p;
+				selected.c = board[box_i][box_j].c;
+				board[box_i][box_j].p = NONE;
+				board[box_i][box_j].c = NONE;
+				temp_i = box_i;
+				temp_j = box_j;
+			}
+			break;
 		}
-		break;
+		else if (turn == BLUE) {
+			if (board[box_i][box_j].p != NONE && board[box_i][box_j].c == BLUE) {
+				sel = true;
+				selected.p = board[box_i][box_j].p;
+				selected.c = board[box_i][box_j].c;
+				board[box_i][box_j].p = NONE;
+				board[box_i][box_j].c = NONE;
+				temp_i = box_i;
+				temp_j = box_j;
+			}
+			break;
+		}
 
 	case ']':
 		if (sel == true) {
-			sel = false;
-			board[box_i][box_j].p = selected.p;
-			board[box_i][box_j].c = selected.c;
-			board[temp_i][temp_j].p = NONE;
-			board[temp_i][temp_j].c = NONE;
+			if (turn == RED) {
+				if (board[box_i][box_j].c != RED) {
+					sel = false;
+					board[box_i][box_j].p = selected.p;
+					board[box_i][box_j].c = selected.c;
+					turn = BLUE;
+				}				
+			}		
+			else if (turn == BLUE) {
+				if (board[box_i][box_j].c != BLUE) {
+					sel = false;
+					board[box_i][box_j].p = selected.p;
+					board[box_i][box_j].c = selected.c;
+					turn = RED;
+				}
+			}
 		}
 		break;
 
@@ -1276,55 +1306,6 @@ void Keyboard(unsigned char key, int x, int y)
 }
 
 void Skeyboard(int key, int x, int y) {
-	//if (sel == true) {
-	//	if (key == GLUT_KEY_LEFT) {
-	//		if (box_j - 1 >= 0 /*&& board[box_i][box_j - 1].p == NONE*/) {
-	//			t_box_z -= 1.0f;
-	//			box_j--;
-	//			//board[box_i][box_j].p = selected.p;
-	//			//board[box_i][box_j].c = selected.c;
-	//			//board[box_i][box_j + 1].p = NONE;
-	//			//board[box_i][box_j + 1].c = NONE;
-	//		}
-	//	}
-
-	//	else if (key == GLUT_KEY_RIGHT) {
-	//		if (box_j + 1 <= 7 /*&& board[box_i][box_j + 1].p == NONE*/) {
-	//			t_box_z += 1.0f;
-	//			box_j++;
-	//			/*board[box_i][box_j].p = selected.p;
-	//			board[box_i][box_j].c = selected.c;
-	//			board[box_i][box_j - 1].p = NONE;
-	//			board[box_i][box_j - 1].c = NONE;*/
-	//		}
-	//	}
-
-	//	else if (key == GLUT_KEY_UP) {
-	//		if (box_i + 1 <= 7 /*&& board[box_i + 1][box_j].p == NONE*/) {
-	//			t_box_x += 1.0f;
-	//			box_i++;
-	//			/*board[box_i][box_j].p = selected.p;
-	//			board[box_i][box_j].c = selected.c;
-	//			board[box_i - 1][box_j].p = NONE;
-	//			board[box_i - 1][box_j].c = NONE;*/
-	//		}
-	//		cout << "i " << box_i << "\n";
-	//	}
-
-	//	else if (key == GLUT_KEY_DOWN) {
-	//		if (box_i - 1 >= 0 /*&& board[box_i - 1][box_j].p == NONE*/) {
-	//			t_box_x -= 1.0f;
-	//			box_i--;
-	//			/*board[box_i][box_j].p = selected.p;
-	//			board[box_i][box_j].c = selected.c;
-	//			board[box_i + 1][box_j].p = NONE;
-	//			board[box_i + 1][box_j].c = NONE;*/
-	//		}
-	//		cout << "i " << box_i << "\n";
-	//	}
-	//}
-
-	//else {
 	if (key == GLUT_KEY_LEFT) {
 		if (box_j - 1 >= 0) {
 			t_box_z -= 1.0f;
@@ -1342,7 +1323,8 @@ void Skeyboard(int key, int x, int y) {
 	else if (key == GLUT_KEY_UP) {
 		if (box_i + 1 <= 7) {
 			t_box_x += 1.0f;
-			box_i++;
+			if(turn == RED)
+				box_i++;
 		}
 	}
 
@@ -1543,7 +1525,7 @@ void ambientlight(float R, float G, float B) {
 	glUseProgram(s_program[0]);
 
 	unsigned int lightPosLocation = glGetUniformLocation(s_program[0], "lightPos"); //--- lightPos 값 전달
-	glUniform3f(lightPosLocation, 0.0f, 5.0f, 0.0f);
+	glUniform3f(lightPosLocation, 4.0f, 5.0f, 4.0f);
 	unsigned int lightColorLocation = glGetUniformLocation(s_program[0], "lightColor"); //--- lightColor 값 전달
 	glUniform3f(lightColorLocation, 1.0, 1.0, 1.0);
 	unsigned int objColorLocation = glGetUniformLocation(s_program[0], "objectColor"); //--- object Color값 전달
@@ -1557,7 +1539,7 @@ void Chess_Board_ambientlight() {
 	glUseProgram(s_program[0]);
 
 	unsigned int lightPosLocation = glGetUniformLocation(s_program[0], "lightPos"); //--- lightPos 값 전달
-	glUniform3f(lightPosLocation, 0.0f, 5.0f, 0.0f);
+	glUniform3f(lightPosLocation, 4.0f, 5.0f, 4.0f);
 	unsigned int lightColorLocation = glGetUniformLocation(s_program[0], "lightColor"); //--- lightColor 값 전달
 	glUniform3f(lightColorLocation, 1.0, 1.0, 1.0);
 	//unsigned int objColorLocation = glGetUniformLocation(s_program[0], "objectColor"); //--- object Color값 전달
